@@ -172,15 +172,16 @@ def comment_detail( request, pk ) :
     return render( request, 'blog/comment_detail.html', context )
 #End comment_detail controller function
 
-def post_child_comment( request, pk ) :
-    """ Post child comment view """
-    if request.method == 'POST' :
-        comment_form = CommentChildViewForm( request.POST, prefix = 'comment_form' )
-        instance = comment_form.save( commit = False )
-        p = Post.objects.get( pk = pk )
-        instance.post = p
-        instance.is_child = True
-        instance.save()
-    #Comment form if not post
-
-#End of post_child_comment view function
+def category_detail( request, pk ) :
+    """ Category controller """
+    #Context variable
+    context = {
+        
+        'title' : 'Categories!!!',
+        'blog_title' : 'Code The Fuck Out',
+        'blog_des' : 'Categories'
+    
+    }
+    #Render the view
+    return render( request, 'blog/category_detail.html', context )
+    
