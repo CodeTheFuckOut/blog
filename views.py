@@ -1,12 +1,16 @@
+# -*- coding: utf-8 -*-
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, render_to_response
 from forms import PostForm, MediaForm, UploadImgurFileForm, CommentViewForm, CommentChildViewForm
-
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+#model imports
 from .serializers import PostSerializer
 from .models import Icon, Category, Post, Media, Comment
 from .imgur import *
 from itertools import *
+#login require imports
+from django.contrib.auth.decorators import login_required
 
 def index( request ) : 
     """
@@ -15,25 +19,25 @@ def index( request ) :
     #Call all the categories    
     categories = Category.objects.all()
     #Call the last 4 posts
-    resent_posts = Post.objects.all().reverse()[:4]
+    resent_posts = Post.objects.all().order_by( '-timestamp' )[:4]
     #Get last 4 coding posts
-    coding_p = Post.objects.filter( category = Category.objects.get( name='Coding' )  ).reverse()[:5]
+    coding_p = Post.objects.filter( category = Category.objects.get( name='Coding' ) ).order_by('-timestamp')[:5]
     #Get last 5 server management posts
-    server_p = Post.objects.filter( category = Category.objects.get( name='Server Management' )  ).reverse()[:5]
+    server_p = Post.objects.filter( category = Category.objects.get( name='Server Management' ) ).order_by('-timestamp')[:5]
     #Get last 5 databases posts
-    databases_p = Post.objects.filter( category = Category.objects.get( name='Data Bases' )  ).reverse()[:5]
+    databases_p = Post.objects.filter( category = Category.objects.get( name='Data Bases' ) ).order_by('-timestamp')[:5]
     #Join all the coding posts   
-    recent_development_posts = chain( server_p, databases_p, coding_p )
+    recent_development_posts = sorted( chain( server_p, databases_p, coding_p ), key=lambda instance: instance.timestamp, reverse=True )
     #Get last 5 recent us posts  
-    recent_us_posts = Post.objects.filter( category = Category.objects.get( name='Us' )  ).reverse()[:5]
+    recent_us_posts = Post.objects.filter( category = Category.objects.get( name='Us' ) ).order_by('-timestamp')[:5]
     #Get last 15 recent news posts
-    recent_news_posts = Post.objects.filter( category = Category.objects.get( name='News' )  )[:15]
+    recent_news_posts = Post.objects.filter( category = Category.objects.get( name='News' ) ).order_by('-timestamp')[:15]
     #Initialize context
     context = {
         
-        'title' : 'Code The Fuck Out!!!',
+        'title' : 'Code The Fuck Out',
         'blog_title' : 'Code The Fuck Out',
-        'blog_des' : 'We fucking do development',
+        'blog_des' : 'Un Blog para desarrollo...',
         'categories' : categories, 
         'resent_posts' : resent_posts, 
         'recent_development_posts' : recent_development_posts,
@@ -45,6 +49,44 @@ def index( request ) :
 
 #End of index funciton view
 
+def about( request ) : 
+    """
+    Index, this is tha main page of the blog
+    """
+    #Call all the categories    
+    categories = Category.objects.all()
+    #Call the last 4 posts
+    resent_posts = Post.objects.all().order_by( '-timestamp' )[:4]
+    #Get last 4 coding posts
+    coding_p = Post.objects.filter( category = Category.objects.get( name='Coding' ) ).order_by('-timestamp')[:5]
+    #Get last 5 server management posts
+    server_p = Post.objects.filter( category = Category.objects.get( name='Server Management' ) ).order_by('-timestamp')[:5]
+    #Get last 5 databases posts
+    databases_p = Post.objects.filter( category = Category.objects.get( name='Data Bases' ) ).order_by('-timestamp')[:5]
+    #Join all the coding posts   
+    recent_development_posts = sorted( chain( server_p, databases_p, coding_p ), key=lambda instance: instance.timestamp, reverse=True )
+    #Get last 5 recent us posts  
+    recent_us_posts = Post.objects.filter( category = Category.objects.get( name='Us' ) ).order_by('-timestamp')[:5]
+    #Get last 15 recent news posts
+    recent_news_posts = Post.objects.filter( category = Category.objects.get( name='News' ) ).order_by('-timestamp')[:15]
+    #Initialize context
+    context = {
+        
+        'title' : 'Code The Fuck Out',
+        'blog_title' : 'Code The Fuck Out',
+        'blog_des' : 'Un Blog para desarrollo...',
+        'categories' : categories, 
+        'resent_posts' : resent_posts, 
+        'recent_development_posts' : recent_development_posts,
+        'recent_us_posts' : recent_us_posts,
+        'recent_news_posts' : recent_news_posts
+    }
+    #Render the blog index template and send context
+    return render( request, 'blog/about.html', context )
+
+#End of about funciton view
+
+@login_required
 def new_post( request ) :
     """
     New_post
@@ -114,7 +156,7 @@ def post_detail( request, pk ) :
         
         'title' : 'Code The Fuck Out!!!',
         'blog_title' : 'Code The Fuck Out',
-        'blog_des' : 'We fucking do development',
+        'blog_des' : 'Un Blog para desarrollo...',
         'categories' : categories, 
         'post' : p,
         'comments' : c,
@@ -174,14 +216,86 @@ def comment_detail( request, pk ) :
 
 def category_detail( request, pk ) :
     """ Category controller """
+    #Get category
+    cat = Category.objects.get( name = pk )
+    #Get the posts of the category
+    post_list = Post.objects.filter( category = cat.pk ).order_by('-timestamp')
+    #do the pagination logic
+    paginator = Paginator( post_list, 5 )
+    #initialize the page variable if the request has a page variable
+    page = request.GET.get( 'page' )
+    #Call all the categories    
+    categories = Category.objects.all()
+    #Verify the paginations
+    try :
+        posts = paginator.page( page )
+    except PageNotAnInteger :
+        # If page is not an integer, deliver first page.
+        posts = paginator.page( 1 )
+    except EmptyPage :
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        posts = paginator.page( paginator.num_pages )
     #Context variable
     context = {
         
-        'title' : 'Categories!!!',
+        'title' : cat.name,
         'blog_title' : 'Code The Fuck Out',
-        'blog_des' : 'Categories'
-    
+        'blog_des' : 'Categories',
+        'categories' : categories,
+        'category' : cat,
+        'posts' : posts
+        
     }
     #Render the view
     return render( request, 'blog/category_detail.html', context )
-    
+#End of category_detail controller function
+
+def search( request ) :
+    """ 
+    Search controller for the search shit that will come out and I don't 
+    know what I'm writing 
+    """
+    if request.method == 'GET' :
+        #Get the posts of the category
+        post_list = Post.objects.filter( title__icontains=request.GET['query'] ).order_by('-timestamp')
+        #do the pagination logic
+        paginator = Paginator( post_list, 5 )
+        #initialize the page variable if the request has a page variable
+        page = request.GET.get( 'page' )
+        #Call all the categories    
+        categories = Category.objects.all()
+        #Verify the paginations
+        try :
+            posts = paginator.page( page )
+        except PageNotAnInteger :
+            # If page is not an integer, deliver first page.
+            posts = paginator.page( 1 )
+        except EmptyPage :
+            # If page is out of range (e.g. 9999), deliver last page of results.
+            posts = paginator.page( paginator.num_pages )
+        #Validate if the list of posts actually has a value
+        if len( posts ) == 0 :
+            msj = "No parece haber ningún post con esa relación."
+        else :
+            msj = None
+        #Context variable
+        context = {
+            'title' : 'Búsqueda',
+            'blog_title' : 'Code The Fuck Out',
+            'categories' : categories,
+            'query' : request.GET['query'],
+            'posts' : posts,
+            'msj' : msj
+        }
+        #Render the template with the context
+        return render( request, 'blog/search.html', context )
+    #Context with the 
+    context = {
+        'title' : 'Búsqueda',
+        'blog_title' : 'Code The Fuck Out',
+        'categories' : categories,
+        'msj' : 'Busqueda incorrecta'
+    }
+    #REnder the template with the context
+    return render( request, 'blog/search.html', context )
+#End of search controller
