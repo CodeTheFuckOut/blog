@@ -11,6 +11,9 @@ from .imgur import *
 from itertools import *
 #login require imports
 from django.contrib.auth.decorators import login_required
+#The sitemap important shit
+from django.contrib.sitemaps import Sitemap
+import datetime
 
 def index( request ) : 
     """
@@ -299,3 +302,18 @@ def search( request ) :
     #REnder the template with the context
     return render( request, 'blog/search.html', context )
 #End of search controller
+
+"""
+blog site map class
+"""
+class BlogSitemap( Sitemap ) :
+    
+    changefreq = "daily"
+    priority = 1.0
+    lastmod = datetime.datetime.now()
+    
+    def items( self ) :
+        return Post.objects.all()
+    #End of items function
+    
+#End of blog_sitemap class
