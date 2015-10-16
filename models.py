@@ -53,6 +53,10 @@ class Post( models.Model ) :
         return self.title
     #End of unicode function
     
+    def get_absolute_url( self ) :
+        return ( "/posts/{0}/" ).format( self.pk )
+    #End of get_absolute_url function
+    
 #End of post model
 
 """
